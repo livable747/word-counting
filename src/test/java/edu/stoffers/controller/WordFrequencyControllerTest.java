@@ -1,13 +1,19 @@
 package edu.stoffers.controller;
 
+import edu.stoffers.analyzer.WordFrequencyAnalyzer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -16,6 +22,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class WordFrequencyControllerTest {
 
     private MockMvc mockMvc;
+
+    @MockitoSpyBean
+    private WordFrequencyAnalyzer analyzer;
 
     @BeforeEach
     void setUp(WebApplicationContext context) {
@@ -160,6 +169,44 @@ class WordFrequencyControllerTest {
         mockMvc.perform(get("/api/v1/words/frequency/most")
                 .param("text", "hello world")
                 .param("n", "0"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("returns 400 when analyzer throws ArithmeticException on overflow")
+    void testHighestFrequencyOverflow() throws Exception {
+        doThrow(new ArithmeticException("integer overflow"))
+                .when(analyzer)
+                .calculateHighestFrequency(anyString());
+
+        mockMvc.perform(get("/api/v1/words/frequency/highest")
+                        .param("text", "overflowtest"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("returns 400 when analyzer throws ArithmeticException on word frequency overflow")
+    void testFrequencyForWordOverflow() throws Exception {
+        doThrow(new ArithmeticException("integer overflow"))
+                .when(analyzer)
+                .calculateFrequencyForWord(anyString(), anyString());
+
+        mockMvc.perform(get("/api/v1/words/frequency")
+                        .param("text", "overflowtest")
+                        .param("word", "test"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("returns 400 when analyzer throws ArithmeticException on most frequent overflow")
+    void testMostFrequentNWordsOverflow() throws Exception {
+        doThrow(new ArithmeticException("integer overflow"))
+                .when(analyzer)
+                .calculateMostFrequentNWords(anyString(), anyInt());
+
+        mockMvc.perform(get("/api/v1/words/frequency/most")
+                        .param("text", "overflowtest")
+                        .param("n", "10"))
                 .andExpect(status().isBadRequest());
     }
 }

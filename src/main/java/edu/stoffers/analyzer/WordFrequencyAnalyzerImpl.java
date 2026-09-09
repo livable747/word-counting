@@ -17,7 +17,10 @@ public class WordFrequencyAnalyzerImpl implements WordFrequencyAnalyzer {
         return Arrays.stream(text.split("[^\\p{L}]+"))
                 .filter(Predicate.not(String::isEmpty))
                 .map(String::toLowerCase)
-                .collect(Collectors.groupingBy(Function.identity(), Collectors.summingInt(w -> 1)))
+                .collect(Collectors.groupingBy(
+                        Function.identity(),
+                        Collectors.reducing(0,  w -> 1, Math::addExact)
+                ))
                 .entrySet()
                 .stream()
                 .map(e -> new WordFrequencyModel(e.getKey(), e.getValue()))
